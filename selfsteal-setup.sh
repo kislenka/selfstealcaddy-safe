@@ -21,6 +21,7 @@ NC='\033[0m'
 DOMAIN=""
 STUB_CHOICE="1"
 ASSUME_YES="0"
+MANAGED_PORTS=(80 2222 443 8443)
 
 trim() {
     local value="$1"
@@ -78,6 +79,16 @@ confirm_continue() {
     local answer
     read -rp "$(echo -e "${YELLOW}[?] ${prompt} (y/n): ${NC}")" answer
     [[ "$answer" == "y" ]]
+}
+
+report_port_status() {
+    local port="$1"
+
+    if ss -lnt "( sport = :$port )" 2>/dev/null | tail -n +2 | grep -q .; then
+        echo -e "${GREEN}[✓] Port ${port} has an active listener${NC}"
+    else
+        echo -e "${YELLOW}[!] Port ${port} has no active listener right now${NC}"
+    fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -470,13 +481,17 @@ echo -e "${GREEN}[✓] Caddyfile configured${NC}"
 echo -e "${CYAN}[*] Configuring firewall...${NC}"
 
 if command -v ufw &>/dev/null; then
-    ufw allow 80/tcp  > /dev/null 2>&1 || true
-    ufw allow 443/tcp > /dev/null 2>&1 || true
-    ufw delete allow 8443/tcp > /dev/null 2>&1 || true
-    echo -e "${GREEN}[✓] UFW: 80/tcp, 443/tcp open | 8443 removed from allow list${NC}"
+    for port in "${MANAGED_PORTS[@]}"; do
+        ufw allow "${port}/tcp" > /dev/null 2>&1 || true
+    done
+    echo -e "${GREEN}[✓] UFW: opened 80/tcp, 2222/tcp, 443/tcp, 8443/tcp${NC}"
 else
-    echo -e "${YELLOW}[!] UFW not found — Caddy is still bound to 127.0.0.1:8443${NC}"
+    echo -e "${YELLOW}[!] UFW not found — open ports manually if needed${NC}"
 fi
+
+for port in "${MANAGED_PORTS[@]}"; do
+    report_port_status "$port"
+done
 
 # ---- Start Caddy ----
 echo -e "${CYAN}[*] Starting Caddy...${NC}"
@@ -496,7 +511,8 @@ else
 fi
 
 # ---- Verify ----
-HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "https://${DOMAIN}:8443" 2>/dev/null || echo "000")
+HTTP_CODE=$(curl --resolve "${DOMAIN}:8443:127.0.0.1" -sk -o /dev/null -w "%{http_code}" "https://${DOMAIN}:8443" 2>/dev/null || true)
+HTTP_CODE=${HTTP_CODE:-000}
 
 if [[ "$HTTP_CODE" =~ ^(200|404)$ ]]; then
     echo -e "${GREEN}[✓] HTTPS works, stub page served (HTTP ${HTTP_CODE})${NC}"
@@ -522,6 +538,6 @@ echo ""
 echo -e "    \"target\":      ${GREEN}\"127.0.0.1:8443\"${NC}"
 echo -e "    \"serverNames\": ${GREEN}[\"${DOMAIN}\"]${NC}"
 echo ""
-echo -e "  ${BOLD}Open ports:${NC}  80 (ACME + stub), 443 (Xray)"
-echo -e "  ${BOLD}Internal:${NC}    8443 (Caddy, bound to 127.0.0.1)"
+echo -e "  ${BOLD}Managed ports:${NC} 80 (ACME + stub), 2222, 443, 8443"
+echo -e "  ${BOLD}Local bind:${NC}   8443 (Caddy, bound to 127.0.0.1)"
 echo ""
