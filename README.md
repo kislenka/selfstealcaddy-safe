@@ -32,9 +32,9 @@ DPI или активное зондирование видит легитимн
 
 | # | Название | Описание |
 |---|----------|----------|
-| 1 | **Minimal 404** | Тёмная, минималистичная страница 404 с градиентной анимацией |
-| 2 | **Cat Memes 404** | Весёлая 404 с летающими котиками и игривым дизайном |
-| 3 | **Business Site** | Профессиональный лендинг IT-компании (NovaTech) |
+| 1 | **Nexus Digital** | Bright corporate landing page with stats, services and CTA sections |
+| 2 | **Stratus Works** | Bright cloud and infrastructure engineering landing page |
+| 3 | **Your Custom Page** | Embedded user-provided landing page from your reference file |
 
 После установки можно заменить заглушку на любой свой HTML.
 

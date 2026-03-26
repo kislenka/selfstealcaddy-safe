@@ -159,9 +159,9 @@ fi
 echo ""
 echo -e "${BOLD}  Choose a stub page:${NC}"
 echo ""
-echo -e "  ${CYAN}1)${NC} ${BOLD}Nexus Digital${NC}        ${DIM}— Dark, clean 404 error page${NC}"
-echo -e "  ${CYAN}2)${NC} ${BOLD}Stratus Works${NC}      ${DIM}— Fun 404 with floating cats${NC}"
-echo -e "  ${CYAN}3)${NC} ${BOLD}Your Custom Page${NC}       ${DIM}— Professional tech company landing page${NC}"
+echo -e "  ${CYAN}1)${NC} ${BOLD}Nexus Digital${NC}      ${DIM}- Clean enterprise software landing page${NC}"
+echo -e "  ${CYAN}2)${NC} ${BOLD}Stratus Works${NC}      ${DIM}- Cloud and infrastructure consulting site${NC}"
+echo -e "  ${CYAN}3)${NC} ${BOLD}Your Custom Page${NC}    ${DIM}- Your provided corporate landing page${NC}"
 echo ""
 if [[ -z "${STUB_CHOICE:-}" || ! "$STUB_CHOICE" =~ ^[1-3]$ ]]; then
     read -rp "$(echo -e "${YELLOW}[?] Select (1/2/3) [default: 1]: ${NC}")" STUB_CHOICE
@@ -234,7 +234,7 @@ echo -e "${CYAN}[*] Creating stub page...${NC}"
 
 mkdir -p /var/www/html
 
-# --- Stub 1: Minimal 404 ---
+# --- Legacy stub: Minimal 404 (unused) ---
 create_stub_minimal() {
 cat > /var/www/html/index.html << 'HTMLEOF'
 <!DOCTYPE html>
@@ -264,7 +264,7 @@ cat > /var/www/html/index.html << 'HTMLEOF'
 HTMLEOF
 }
 
-# --- Stub 2: Cat Memes 404 ---
+# --- Legacy stub: Cat Memes 404 (unused) ---
 create_stub_cats() {
 cat > /var/www/html/index.html << 'HTMLEOF'
 <!DOCTYPE html>
@@ -321,7 +321,7 @@ cat > /var/www/html/index.html << 'HTMLEOF'
 HTMLEOF
 }
 
-# --- Stub 3: Business Site ---
+# --- Legacy stub: Business Site (unused) ---
 create_stub_business() {
 cat > /var/www/html/index.html << 'HTMLEOF'
 <!DOCTYPE html>
@@ -489,7 +489,7 @@ cat > /var/www/html/index.html << 'HTMLEOF'
     </style>
 </head>
 <body>
-    <div class="wrap"><div class="nav"><div class="nav-in"><div class="logo"><div class="logo-mark">S</div><div>Stratus Works</div></div><div style="font-weight:800;color:var(--muted)">Infrastructure ? Security ? Delivery</div></div></div><section class="hero"><div class="grid"><div><h1>Cloud delivery for teams that need <span>clarity</span> and speed</h1><p class="lead">Stratus Works helps companies modernize infrastructure, deployment pipelines and internal developer platforms with clear execution and security-first defaults.</p><div class="actions"><a class="btn primary" href="#contact">Talk to Engineering</a><a class="btn secondary" href="#services">See Capabilities</a></div></div><div class="panel"><div class="mini-grid"><div class="mini"><strong>99.98%</strong><span>Service availability</span></div><div class="mini"><strong>14m</strong><span>Mean rollout time</span></div><div class="mini"><strong>42</strong><span>Regions supported</span></div><div class="mini"><strong>7x</strong><span>Faster recovery</span></div></div></div></div></section><section id="services" class="section"><div class="heading"><h2>Infrastructure, delivery and platform services in one operating model</h2><p>We work with teams that need more than ad-hoc DevOps support and want a repeatable operating baseline for modern delivery.</p></div><div class="cards"><div class="card"><h3>Deployment Systems</h3><p>Pipeline design, artifact promotion and release safety controls tailored to your stack and compliance profile.</p></div><div class="card"><h3>Cloud Platforms</h3><p>Kubernetes, observability and policy baselines that support multi-team application delivery without platform sprawl.</p></div><div class="card"><h3>Security Hardening</h3><p>Identity boundaries, workload isolation and incident-ready telemetry tuned for production environments.</p></div></div><div class="metrics"><div class="metric"><strong>180+</strong><span>Clusters Managed</span></div><div class="metric"><strong>24/7</strong><span>Incident Readiness</span></div><div class="metric"><strong>35%</strong><span>Lower Cloud Waste</span></div><div class="metric"><strong>5 Days</strong><span>Typical Migration</span></div></div></section><section id="contact" class="section"><div class="contact"><div class="contact-grid"><div><h2 style="font-size:clamp(2rem,4vw,3.3rem);line-height:1.1;letter-spacing:-.05em">Need a cleaner infrastructure story?</h2><p style="margin-top:18px">Tell us where delivery friction, security gaps or scaling pain are showing up and we will outline a realistic platform improvement path.</p></div><div><input type="text" placeholder="Your Name"><input type="email" placeholder="Work Email"><select><option>Platform Modernization</option><option>Cloud Migration</option><option>Security Hardening</option></select><textarea placeholder="Describe the current challenge..."></textarea><button type="button">Request Consultation</button></div></div></div></section><footer>&copy; 2026 Stratus Works. Platform engineering, infrastructure modernization and cloud security delivery.</footer></div>
+    <div class="wrap"><div class="nav"><div class="nav-in"><div class="logo"><div class="logo-mark">S</div><div>Stratus Works</div></div><div style="font-weight:800;color:var(--muted)">Infrastructure / Security / Delivery</div></div></div><section class="hero"><div class="grid"><div><h1>Cloud delivery for teams that need <span>clarity</span> and speed</h1><p class="lead">Stratus Works helps companies modernize infrastructure, deployment pipelines and internal developer platforms with clear execution and security-first defaults.</p><div class="actions"><a class="btn primary" href="#contact">Talk to Engineering</a><a class="btn secondary" href="#services">See Capabilities</a></div></div><div class="panel"><div class="mini-grid"><div class="mini"><strong>99.98%</strong><span>Service availability</span></div><div class="mini"><strong>14m</strong><span>Mean rollout time</span></div><div class="mini"><strong>42</strong><span>Regions supported</span></div><div class="mini"><strong>7x</strong><span>Faster recovery</span></div></div></div></div></section><section id="services" class="section"><div class="heading"><h2>Infrastructure, delivery and platform services in one operating model</h2><p>We work with teams that need more than ad-hoc DevOps support and want a repeatable operating baseline for modern delivery.</p></div><div class="cards"><div class="card"><h3>Deployment Systems</h3><p>Pipeline design, artifact promotion and release safety controls tailored to your stack and compliance profile.</p></div><div class="card"><h3>Cloud Platforms</h3><p>Kubernetes, observability and policy baselines that support multi-team application delivery without platform sprawl.</p></div><div class="card"><h3>Security Hardening</h3><p>Identity boundaries, workload isolation and incident-ready telemetry tuned for production environments.</p></div></div><div class="metrics"><div class="metric"><strong>180+</strong><span>Clusters Managed</span></div><div class="metric"><strong>24/7</strong><span>Incident Readiness</span></div><div class="metric"><strong>35%</strong><span>Lower Cloud Waste</span></div><div class="metric"><strong>5 Days</strong><span>Typical Migration</span></div></div></section><section id="contact" class="section"><div class="contact"><div class="contact-grid"><div><h2 style="font-size:clamp(2rem,4vw,3.3rem);line-height:1.1;letter-spacing:-.05em">Need a cleaner infrastructure story?</h2><p style="margin-top:18px">Tell us where delivery friction, security gaps or scaling pain are showing up and we will outline a realistic platform improvement path.</p></div><div><input type="text" placeholder="Your Name"><input type="email" placeholder="Work Email"><select><option>Platform Modernization</option><option>Cloud Migration</option><option>Security Hardening</option></select><textarea placeholder="Describe the current challenge..."></textarea><button type="button">Request Consultation</button></div></div></div></section><footer>&copy; 2026 Stratus Works. Platform engineering, infrastructure modernization and cloud security delivery.</footer></div>
 </body>
 </html>
 HTMLEOF
