@@ -8,7 +8,7 @@
 #  Requirements: Debian/Ubuntu, root access
 # ============================================
 
-set -e
+set -euo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -17,6 +17,96 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
+
+DOMAIN=""
+STUB_CHOICE="1"
+ASSUME_YES="0"
+
+trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
+usage() {
+    cat <<'EOF'
+Usage: bash selfsteal-setup.sh [options]
+
+Options:
+  --domain <fqdn>      Domain to use for the Caddy stub
+  --stub <1|2|3>       Stub page: 1=Minimal, 2=Cats, 3=Business
+  --yes                Continue non-interactively on DNS mismatch
+  -h, --help           Show this help
+EOF
+}
+
+validate_domain() {
+    local domain="$1"
+
+    if [[ ${#domain} -gt 253 ]]; then
+        return 1
+    fi
+
+    if [[ "$domain" =~ [[:space:]/\\:{}] ]]; then
+        return 1
+    fi
+
+    if [[ ! "$domain" =~ ^[A-Za-z0-9.-]+$ ]]; then
+        return 1
+    fi
+
+    if [[ "$domain" == .* || "$domain" == *. || "$domain" == *..* ]]; then
+        return 1
+    fi
+
+    if [[ ! "$domain" =~ [A-Za-z] ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
+confirm_continue() {
+    local prompt="$1"
+
+    if [[ "$ASSUME_YES" == "1" ]]; then
+        echo -e "${YELLOW}[!] ${prompt} --yes enabled, continuing${NC}"
+        return 0
+    fi
+
+    local answer
+    read -rp "$(echo -e "${YELLOW}[?] ${prompt} (y/n): ${NC}")" answer
+    [[ "$answer" == "y" ]]
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --domain)
+            [[ $# -lt 2 ]] && { echo "Missing value for --domain"; exit 1; }
+            DOMAIN="$2"
+            shift 2
+            ;;
+        --stub)
+            [[ $# -lt 2 ]] && { echo "Missing value for --stub"; exit 1; }
+            STUB_CHOICE="$2"
+            shift 2
+            ;;
+        --yes)
+            ASSUME_YES="1"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}[✗] Unknown argument: $1${NC}"
+            usage
+            exit 1
+            ;;
+    esac
+done
 
 echo -e "${CYAN}"
 cat << 'BANNER'
@@ -35,14 +125,24 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # ---- Domain input ----
-read -rp "$(echo -e "${YELLOW}[?] Enter your domain: ${NC}")" DOMAIN
+if [[ -z "$DOMAIN" ]]; then
+    read -rp "$(echo -e "${YELLOW}[?] Enter your domain: ${NC}")" DOMAIN
+fi
+
+DOMAIN=$(trim "$DOMAIN")
+DOMAIN=${DOMAIN,,}
+DOMAIN=${DOMAIN%.}
 
 if [[ -z "$DOMAIN" ]]; then
     echo -e "${RED}[✗] Domain cannot be empty${NC}"
     exit 1
 fi
 
-DOMAIN=$(echo "$DOMAIN" | xargs)
+if ! validate_domain "$DOMAIN"; then
+    echo -e "${RED}[✗] Invalid domain: ${DOMAIN}${NC}"
+    echo -e "    Allowed: letters, digits, dots and hyphens only"
+    exit 1
+fi
 
 # ---- Stub page selection ----
 echo ""
@@ -52,7 +152,9 @@ echo -e "  ${CYAN}1)${NC} ${BOLD}Minimal 404${NC}        ${DIM}— Dark, clean 4
 echo -e "  ${CYAN}2)${NC} ${BOLD}Cat Memes 404${NC}      ${DIM}— Fun 404 with floating cats${NC}"
 echo -e "  ${CYAN}3)${NC} ${BOLD}Business Site${NC}       ${DIM}— Professional tech company landing page${NC}"
 echo ""
-read -rp "$(echo -e "${YELLOW}[?] Select (1/2/3) [default: 1]: ${NC}")" STUB_CHOICE
+if [[ -z "${STUB_CHOICE:-}" || ! "$STUB_CHOICE" =~ ^[1-3]$ ]]; then
+    read -rp "$(echo -e "${YELLOW}[?] Select (1/2/3) [default: 1]: ${NC}")" STUB_CHOICE
+fi
 
 STUB_CHOICE=${STUB_CHOICE:-1}
 
@@ -73,14 +175,12 @@ DOMAIN_IP=$(dig +short "$DOMAIN" A 2>/dev/null | head -1)
 if [[ -z "$DOMAIN_IP" ]]; then
     echo -e "${RED}[✗] Domain ${DOMAIN} does not resolve to any IP${NC}"
     echo -e "    Make sure DNS A record points to this server: ${CYAN}${SERVER_IP}${NC}"
-    read -rp "$(echo -e "${YELLOW}[?] Continue anyway? (y/n): ${NC}")" CONT
-    [[ "$CONT" != "y" ]] && exit 1
+    confirm_continue "Continue anyway?" || exit 1
 elif [[ "$SERVER_IP" == "$DOMAIN_IP" ]]; then
     echo -e "${GREEN}[✓] DNS OK: ${DOMAIN} → ${DOMAIN_IP}${NC}"
 else
     echo -e "${YELLOW}[!] Warning: ${DOMAIN} → ${DOMAIN_IP}, but server IP is ${SERVER_IP}${NC}"
-    read -rp "$(echo -e "${YELLOW}[?] Continue anyway? (y/n): ${NC}")" CONT
-    [[ "$CONT" != "y" ]] && exit 1
+    confirm_continue "Continue anyway?" || exit 1
 fi
 
 # ---- Install dependencies ----
@@ -163,9 +263,8 @@ cat > /var/www/html/index.html << 'HTMLEOF'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>404 - Oops!</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
         *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Fredoka',sans-serif;background:#1a1525;color:#e0e0e0;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden}
+        body{font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;background:#1a1525;color:#e0e0e0;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden}
         .container{text-align:center;padding:2rem;position:relative;z-index:1}
         .cat-wrapper{position:relative;display:inline-block;margin-bottom:1.5rem}
         .cat{font-size:8rem;line-height:1;filter:drop-shadow(0 0 30px rgba(255,150,200,0.3));animation:float 3s ease-in-out infinite}
@@ -221,13 +320,12 @@ cat > /var/www/html/index.html << 'HTMLEOF'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NovaTech Solutions — Digital Innovation</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700&display=swap');
         *{margin:0;padding:0;box-sizing:border-box}
         :root{--bg:#0c0f16;--surface:#13161f;--border:#1e2230;--accent:#4f7df5;--accent2:#7c5bf5;--text:#c8cdd8;--text-dim:#5a6072;--white:#eef0f6}
-        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+        body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
         .noise{position:fixed;top:0;left:0;width:100%;height:100%;opacity:.03;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");z-index:999}
         nav{position:fixed;top:0;width:100%;padding:1.2rem 3rem;display:flex;justify-content:space-between;align-items:center;z-index:10;backdrop-filter:blur(20px);background:rgba(12,15,22,.7);border-bottom:1px solid var(--border)}
-        .logo{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--white);font-weight:700;letter-spacing:-.5px}
+        .logo{font-family:Georgia,'Times New Roman',serif;font-size:1.4rem;color:var(--white);font-weight:700;letter-spacing:-.5px}
         .logo span{color:var(--accent)}
         nav ul{list-style:none;display:flex;gap:2rem}
         nav a{color:var(--text-dim);text-decoration:none;font-size:.9rem;font-weight:500;transition:color .3s}
@@ -235,7 +333,7 @@ cat > /var/www/html/index.html << 'HTMLEOF'
         .hero{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;padding:6rem 3rem 4rem}
         .hero-content{max-width:800px;text-align:center;position:relative;z-index:2}
         .badge{display:inline-block;padding:.4rem 1rem;border:1px solid var(--border);border-radius:50px;font-size:.8rem;color:var(--accent);margin-bottom:2rem;letter-spacing:1px;text-transform:uppercase}
-        h1{font-family:'Playfair Display',serif;font-size:clamp(2.5rem,6vw,4.5rem);color:var(--white);line-height:1.1;margin-bottom:1.5rem;letter-spacing:-.5px}
+        h1{font-family:Georgia,'Times New Roman',serif;font-size:clamp(2.5rem,6vw,4.5rem);color:var(--white);line-height:1.1;margin-bottom:1.5rem;letter-spacing:-.5px}
         h1 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
         .hero p{font-size:1.15rem;color:var(--text-dim);max-width:550px;margin:0 auto 2.5rem;line-height:1.7}
         .cta-row{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
@@ -249,7 +347,7 @@ cat > /var/www/html/index.html << 'HTMLEOF'
         .glow-2{background:var(--accent2);bottom:-100px;right:-100px}
         .stats{display:flex;gap:3rem;justify-content:center;margin-top:4rem;padding-top:3rem;border-top:1px solid var(--border)}
         .stat{text-align:center}
-        .stat-num{font-family:'Playfair Display',serif;font-size:2.2rem;color:var(--white);font-weight:700}
+        .stat-num{font-family:Georgia,'Times New Roman',serif;font-size:2.2rem;color:var(--white);font-weight:700}
         .stat-label{font-size:.85rem;color:var(--text-dim);margin-top:.3rem}
         .features{padding:4rem 3rem 5rem;max-width:1000px;margin:0 auto}
         .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
@@ -346,10 +444,13 @@ cat > /etc/caddy/Caddyfile << CADDYEOF
 }
 
 ${DOMAIN}:80 {
-    redir https://${DOMAIN}:8443{uri} permanent
+    root * /var/www/html
+    try_files {path} /index.html
+    file_server
 }
 
 ${DOMAIN}:8443 {
+    bind 127.0.0.1
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
@@ -361,6 +462,7 @@ ${DOMAIN}:8443 {
 }
 CADDYEOF
 
+caddy validate --config /etc/caddy/Caddyfile > /dev/null 2>&1
 caddy fmt --overwrite /etc/caddy/Caddyfile > /dev/null 2>&1 || true
 echo -e "${GREEN}[✓] Caddyfile configured${NC}"
 
@@ -371,9 +473,9 @@ if command -v ufw &>/dev/null; then
     ufw allow 80/tcp  > /dev/null 2>&1 || true
     ufw allow 443/tcp > /dev/null 2>&1 || true
     ufw delete allow 8443/tcp > /dev/null 2>&1 || true
-    echo -e "${GREEN}[✓] UFW: 80/tcp, 443/tcp open | 8443 closed (internal only)${NC}"
+    echo -e "${GREEN}[✓] UFW: 80/tcp, 443/tcp open | 8443 removed from allow list${NC}"
 else
-    echo -e "${YELLOW}[!] UFW not found — make sure ports 80 and 443 are open${NC}"
+    echo -e "${YELLOW}[!] UFW not found — Caddy is still bound to 127.0.0.1:8443${NC}"
 fi
 
 # ---- Start Caddy ----
@@ -412,14 +514,14 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo -e "  ${BOLD}Domain:${NC}     ${CYAN}${DOMAIN}${NC}"
 echo -e "  ${BOLD}Stub:${NC}       ${CYAN}${STUB_NAMES[$((STUB_CHOICE-1))]}${NC}"
-echo -e "  ${BOLD}URL:${NC}        ${CYAN}https://${DOMAIN}:8443${NC}"
-echo -e "  ${BOLD}HTTP:${NC}       ${CYAN}http://${DOMAIN}${NC} → redirect to HTTPS"
+echo -e "  ${BOLD}Local TLS:${NC}  ${CYAN}https://${DOMAIN}:8443${NC}"
+echo -e "  ${BOLD}Public HTTP:${NC} ${CYAN}http://${DOMAIN}${NC} serves the stub page"
 echo ""
 echo -e "  ${YELLOW}━━━ Update your Xray / Remnawave node config ━━━${NC}"
 echo ""
 echo -e "    \"target\":      ${GREEN}\"127.0.0.1:8443\"${NC}"
 echo -e "    \"serverNames\": ${GREEN}[\"${DOMAIN}\"]${NC}"
 echo ""
-echo -e "  ${BOLD}Open ports:${NC}  80 (cert + redirect), 443 (Xray)"
-echo -e "  ${BOLD}Internal:${NC}    8443 (Caddy, localhost only)"
+echo -e "  ${BOLD}Open ports:${NC}  80 (ACME + stub), 443 (Xray)"
+echo -e "  ${BOLD}Internal:${NC}    8443 (Caddy, bound to 127.0.0.1)"
 echo ""
